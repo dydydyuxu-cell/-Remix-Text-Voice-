@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Base profile document indexed strictly by Firebase UID.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["uid", "createdAt"]
+    },
+    "UserSettings": {
+      "title": "User Settings & BYOK",
+      "description": "User configuration, voice preferences, and encrypted BYOK Gemini API key.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "providerMode": { "type": "string", "enum": ["byok", "site"], "description": "Mode of API execution" },
+        "hasCustomApiKey": { "type": "boolean", "description": "Whether user configured their own Gemini API key" },
+        "maskedApiKey": { "type": "string", "description": "Masked representation of API key (e.g., AIza••••••••1234)" },
+        "encryptedApiKey": { "type": "string", "description": "AES-256-GCM encrypted API key, managed on backend only" },
+        "preferredVoice": { "type": "string", "description": "Default selected voice name" },
+        "preferredLanguage": { "type": "string", "description": "Default voice language" },
+        "speakingRate": { "type": "number", "description": "Default speech speed rate" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last settings update timestamp" }
+      },
+      "required": ["uid", "providerMode"]
+    },
+    "UserUsage": {
+      "title": "User Character Usage & Balance",
+      "description": "Strictly UID-isolated internal quota balance for site API usage. Never shared globally.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "freeCharacters": { "type": "number", "description": "Initial free characters allocated (10,000)" },
+        "usedCharacters": { "type": "number", "description": "Total characters consumed via site API" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last balance update timestamp" }
+      },
+      "required": ["uid", "freeCharacters", "usedCharacters"]
+    },
+    "Generation": {
+      "title": "TTS Audio Generation",
+      "description": "Individual speech synthesis generation record owned exclusively by UID.",
+      "type": "object",
+      "properties": {
+        "generationId": { "type": "string", "description": "Unique generation record ID" },
+        "uid": { "type": "string", "description": "Owner Firebase UID" },
+        "text": { "type": "string", "description": "Input text submitted for synthesis" },
+        "textLength": { "type": "number", "description": "Character count of text" },
+        "provider": { "type": "string", "enum": ["Gemini"], "description": "AI TTS Provider" },
+        "voice": { "type": "string", "description": "Voice name used" },
+        "language": { "type": "string", "description": "Language chosen" },
+        "speakingRate": { "type": "number", "description": "Speaking rate multiplier" },
+        "status": { "type": "string", "enum": ["QUEUED", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED"], "description": "Execution status" },
+        "audioUrl": { "type": "string", "description": "Data URL or storage URL for synthesized audio" },
+        "idempotencyKey": { "type": "string", "description": "Client idempotency key preventing duplicate runs" },
+        "usedByok": { "type": "boolean", "description": "Whether user's BYOK key was used" },
+        "errorMessage": { "type": "string", "description": "Error message if failed" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["generationId", "uid", "textLength", "provider", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profile document. Only readable and writable by the authenticated user matching UID."
+    },
+    "/users/{uid}/settings/general": {
+      "schema": "UserSettings",
+      "description": "User settings and BYOK metadata. Only readable and writable by the authenticated user matching UID."
+    },
+    "/users/{uid}/usage/balance": {
+      "schema": "UserUsage",
+      "description": "User character balance. Readable by UID, modified transactionally by backend server."
+    },
+    "/users/{uid}/generations/{generationId}": {
+      "schema": "Generation",
+      "description": "User generation records. Only accessible and listable by UID."
+    }
+  }
+}

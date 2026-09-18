@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix النص ☜ صوت | Text ☞ Voice",
+  "description": "منصة تحويل النص إلى صوت بالذكاء الاصطناعي مع 10,000 حرف شهرياً لكل حساب مستقل ودعم أصوات فائقة الواقعية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
