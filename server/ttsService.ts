@@ -1,9 +1,9 @@
 /**
  * Server-side Gemini TTS Integration
- * Directly calls official Gemini TTS models with chosen voice, tone, and language.
- * Converts raw PCM audio output to standard playable WAV format.
+ * Uses Google's Gemini TTS models and converts raw PCM audio to WAV.
  */
-import { GoogleGenerativeAI } from '@google/generative-ai';
+
+import { GoogleGenAI } from '@google/genai';
 
 export interface TTSOptions {
   text: string;
@@ -21,7 +21,7 @@ export interface TTSResult {
 }
 
 /**
- * Converts 24kHz 16-bit Mono PCM buffer to a valid WAV file Buffer.
+ * Converts 24kHz 16-bit Mono PCM to WAV.
  */
 export function pcmToWav(
   pcmBuffer: Buffer,
@@ -32,24 +32,22 @@ export function pcmToWav(
   const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
   const blockAlign = (numChannels * bitsPerSample) / 8;
   const dataSize = pcmBuffer.length;
+
   const header = Buffer.alloc(44);
 
-  // RIFF chunk descriptor
   header.write('RIFF', 0);
   header.writeUInt32LE(36 + dataSize, 4);
   header.write('WAVE', 8);
 
-  // 'fmt ' sub-chunk
   header.write('fmt ', 12);
-  header.writeUInt32LE(16, 16); // subchunk1 size (16 for PCM)
-  header.writeUInt16LE(1, 20); // audio format (1 = PCM)
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
   header.writeUInt16LE(numChannels, 22);
   header.writeUInt32LE(sampleRate, 24);
   header.writeUInt32LE(byteRate, 28);
   header.writeUInt16LE(blockAlign, 32);
   header.writeUInt16LE(bitsPerSample, 34);
 
-  // 'data' sub-chunk
   header.write('data', 36);
   header.writeUInt32LE(dataSize, 40);
 
@@ -57,126 +55,181 @@ export function pcmToWav(
 }
 
 /**
- * Tests whether a given Gemini API key is valid by making a lightweight request.
+ * Test Gemini API key.
  */
-export async function testGeminiApiKey(apiKey: string): Promise<{ valid: boolean; error?: string }> {
+export async function testGeminiApiKey(
+  apiKey: string
+): Promise<{ valid: boolean; error?: string }> {
   try {
     if (!apiKey || apiKey.trim().length < 10) {
-      return { valid: false, error: 'مفتاح API غير صالح أو فارغ' };
+      return {
+        valid: false,
+        error: 'مفتاح API غير صالح أو فارغ'
+      };
     }
-    const ai = new GoogleGenerativeAI(apiKey.trim());
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const testRes = await model.generateContent('Test connection');
-    if (testRes && testRes.response) {
+
+    const ai = new GoogleGenAI({
+      apiKey: apiKey.trim()
+    });
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-preview-tts',
+      contents: 'Test connection',
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: 'Puck'
+            }
+          }
+        }
+      }
+    });
+
+    if (response.candidates && response.candidates.length > 0) {
       return { valid: true };
     }
-    return { valid: false, error: 'لم يتم استلام رد من النموذج' };
+
+    return {
+      valid: false,
+      error: 'لم يتم استلام رد من Gemini'
+    };
   } catch (err: any) {
     const msg = err?.message || String(err);
-    if (msg.includes('API_KEY_INVALID') || msg.includes('400') || msg.includes('403')) {
-      return { valid: false, error: 'مفتاح API غير صالح أو لا يملك الأذونات اللازمة.' };
+
+    if (
+      msg.includes('API_KEY_INVALID') ||
+      msg.includes('401') ||
+      msg.includes('403')
+    ) {
+      return {
+        valid: false,
+        error: 'مفتاح API غير صالح أو لا يملك الأذونات اللازمة.'
+      };
     }
-    return { valid: false, error: msg };
+
+    return {
+      valid: false,
+      error: msg
+    };
   }
 }
 
 /**
- * Synthesizes text to speech using Gemini TTS model.
+ * Generate speech using Gemini TTS.
  */
 export async function generateGeminiTTS(
   apiKey: string,
   options: TTSOptions
 ): Promise<TTSResult> {
-  if (!apiKey) {
+  if (!apiKey || !apiKey.trim()) {
     throw new Error('No API key provided for TTS synthesis');
   }
 
-  const ai = new GoogleGenerativeAI(apiKey);
+  const text = options.text?.trim();
+
+  if (!text) {
+    throw new Error('No text provided for TTS synthesis');
+  }
+
+  const ai = new GoogleGenAI({
+    apiKey: apiKey.trim()
+  });
 
   const voice = options.voiceName || 'Puck';
-  const language = options.language || 'العربية';
+  const language = options.language || 'Arabic';
   const style = options.style || 'طبيعي';
-  const rate = options.speakingRate || 1.0;
+  const rate = options.speakingRate ?? 1.0;
 
-  let promptText = options.text.trim();
-  
   const styleInstructions: Record<string, string> = {
-    'طبيعي': 'natural and balanced tone',
-    'سردي وقصصي': 'expressive narrative storytelling tone with immersive pacing',
-    'إخباري ورسمي': 'authoritative, clear, and formal broadcast tone',
-    'بودكاست وحواري': 'warm, engaging, and conversational podcast tone',
-    'تحفيزي وإعلاني': 'energetic, inspiring, and commercial broadcast tone',
+    'طبيعي':
+      'natural, clear and balanced tone',
+
+    'سردي وقصصي':
+      'expressive storytelling tone with immersive pacing',
+
+    'إخباري ورسمي':
+      'clear, authoritative and formal broadcast tone',
+
+    'بودكاست وحواري':
+      'warm, friendly and conversational podcast tone',
+
+    'تحفيزي وإعلاني':
+      'energetic, enthusiastic and engaging commercial tone'
   };
 
-  const selectedInstruction = styleInstructions[style] || 'clear, natural tone';
-  const rateDesc = rate > 1.1 ? 'at a brisk pace' : rate < 0.9 ? 'at a measured, deliberate pace' : 'at standard pace';
+  const selectedStyle =
+    styleInstructions[style] || 'clear and natural tone';
 
-  const systemPrompt = `You are a professional Text-to-Speech synthesis system.
-Read the user text aloud exactly as provided without adding commentary, prefixes, or concluding words.
+  const rateInstruction =
+    rate > 1.1
+      ? 'Speak at a brisk pace.'
+      : rate < 0.9
+        ? 'Speak at a slower, measured pace.'
+        : 'Speak at a natural standard pace.';
+
+  const prompt = `
+Read the following text aloud exactly as written.
+
+Do not add any introduction.
+Do not add any explanation.
+Do not add any conclusion.
+Do not change the words.
+
 Target language: ${language}.
-Delivery style: ${selectedInstruction}, ${rateDesc}.
+Speaking style: ${selectedStyle}.
+${rateInstruction}
 
-User Text:
-${promptText}`;
+Text:
+${text}
+`;
 
-  const modelsToTry = [
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-  ];
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-preview-tts',
 
-  let lastError: any = null;
+      contents: prompt,
 
-  for (const modelName of modelsToTry) {
-    try {
-      const model = ai.getGenerativeModel({ model: modelName });
-      const response = await model.generateContent(systemPrompt);
-      const result = await response.response;
+      config: {
+        responseModalities: ['AUDIO'],
 
-      const candidates = result.candidates || [];
-      for (const candidate of candidates) {
-        const parts = candidate.content?.parts || [];
-        for (const part of parts) {
-          if (part.inlineData && part.inlineData.data) {
-            const rawMime = part.inlineData.mimeType || '';
-            const rawBase64 = part.inlineData.data;
-            const rawBuffer = Buffer.from(rawBase64, 'base64');
-
-            let wavBuffer: Buffer;
-            let sampleRate = 24000;
-            if (rawMime.includes('rate=')) {
-              const match = rawMime.match(/rate=(\d+)/);
-              if (match) sampleRate = parseInt(match[1], 10);
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voice
             }
-
-            if (rawMime.includes('pcm') || rawMime.includes('L16') || rawMime.includes('l16')) {
-              wavBuffer = pcmToWav(rawBuffer, sampleRate, 1, 16);
-            } else if (rawBuffer.slice(0, 4).toString() === 'RIFF') {
-              wavBuffer = rawBuffer;
-            } else {
-              wavBuffer = pcmToWav(rawBuffer, sampleRate, 1, 16);
-            }
-
-            const wavBase64 = wavBuffer.toString('base64');
-            const audioUrl = `data:audio/wav;base64,${wavBase64}`;
-            const durationEstimate = Math.max(1, Math.round(promptText.length / 15));
-
-            return {
-              audioBase64: wavBase64,
-              mimeType: 'audio/wav',
-              audioUrl,
-              durationEstimateSeconds: durationEstimate,
-            };
           }
         }
       }
+    });
 
-      throw new Error(`Model ${modelName} returned response without audio inlineData`);
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`TTS attempt with model ${modelName} failed:`, err?.message || err);
-      continue;
-    }
-  }
+    const parts = response.candidates?.[0]?.content?.parts || [];
 
-  throw new Error(`Failed to synthesize speech with Gemini TTS: ${lastError?.message || 'Unknown error'}`);
-}
+    for (const part of parts) {
+      const inlineData = part.inlineData;
+
+      if (!inlineData?.data) {
+        continue;
+      }
+
+      const rawBase64 = inlineData.data;
+      const rawMime = inlineData.mimeType || 'audio/pcm;rate=24000';
+
+      const rawBuffer = Buffer.from(rawBase64, 'base64');
+
+      let sampleRate = 24000;
+
+      const rateMatch = rawMime.match(/rate=(\d+)/);
+
+      if (rateMatch) {
+        sampleRate = parseInt(rateMatch[1], 10);
+      }
+
+      let wavBuffer: Buffer;
+
+      if (
+        rawMime.toLowerCase().includes('pcm') ||
+        rawMime.toLowerCase().includes('l16')
+      ) {
+        wavBuffer =
