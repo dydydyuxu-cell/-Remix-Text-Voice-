@@ -164,3 +164,154 @@ export async function generateGeminiTTS(
 
     'إخباري ورسمي':
       'clear, authoritative and formal broadcast tone',
+
+    'بودكاست وحواري':
+      'warm, friendly and conversational podcast tone',
+
+    'تحفيزي وإعلاني':
+      'energetic, enthusiastic and engaging commercial tone'
+  };
+
+  const selectedStyle =
+    styleInstructions[style] ||
+    'clear and natural tone';
+
+  const rateInstruction =
+    rate > 1.1
+      ? 'Speak at a brisk pace.'
+      : rate < 0.9
+        ? 'Speak at a slower, measured pace.'
+        : 'Speak at a natural standard pace.';
+
+  const prompt = `
+Read the following text aloud exactly as written.
+
+Do not add any introduction.
+Do not add any explanation.
+Do not add any conclusion.
+Do not change the words.
+
+Target language: ${language}.
+Speaking style: ${selectedStyle}.
+${rateInstruction}
+
+Text:
+${text}
+`;
+
+  try {
+    const response =
+      await ai.models.generateContent({
+        model: 'gemini-2.5-flash-preview-tts',
+
+        contents: prompt,
+
+        config: {
+          responseModalities: ['AUDIO'],
+
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: voice
+              }
+            }
+          }
+        }
+      });
+
+    const parts =
+      response.candidates?.[0]?.content?.parts || [];
+
+    for (const part of parts) {
+      const inlineData = part.inlineData;
+
+      if (!inlineData?.data) {
+        continue;
+      }
+
+      const rawBase64 = inlineData.data;
+
+      const rawMime =
+        inlineData.mimeType ||
+        'audio/pcm;rate=24000';
+
+      const rawBuffer =
+        Buffer.from(rawBase64, 'base64');
+
+      let sampleRate = 24000;
+
+      const rateMatch =
+        rawMime.match(/rate=(\d+)/);
+
+      if (rateMatch) {
+        sampleRate =
+          parseInt(rateMatch[1], 10);
+      }
+
+      let wavBuffer: Buffer;
+
+      const mimeLower =
+        rawMime.toLowerCase();
+
+      if (
+        mimeLower.includes('pcm') ||
+        mimeLower.includes('l16')
+      ) {
+        wavBuffer = pcmToWav(
+          rawBuffer,
+          sampleRate,
+          1,
+          16
+        );
+      } else if (
+        rawBuffer
+          .slice(0, 4)
+          .toString() === 'RIFF'
+      ) {
+        wavBuffer = rawBuffer;
+      } else {
+        wavBuffer = pcmToWav(
+          rawBuffer,
+          sampleRate,
+          1,
+          16
+        );
+      }
+
+      const wavBase64 =
+        wavBuffer.toString('base64');
+
+      const audioUrl =
+        `data:audio/wav;base64,${wavBase64}`;
+
+      const durationEstimateSeconds =
+        Math.max(
+          1,
+          Math.round(text.length / 15)
+        );
+
+      return {
+        audioBase64: wavBase64,
+        mimeType: 'audio/wav',
+        audioUrl,
+        durationEstimateSeconds
+      };
+    }
+
+    throw new Error(
+      'Gemini TTS returned no audio data'
+    );
+  } catch (err: any) {
+    const message =
+      err?.message || String(err);
+
+    console.error(
+      'Gemini TTS error:',
+      message
+    );
+
+    throw new Error(
+      `Gemini TTS failed: ${message}`
+    );
+  }
+}
