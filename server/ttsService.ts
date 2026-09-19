@@ -21,7 +21,7 @@ export interface TTSResult {
 }
 
 /**
- * Converts 24kHz 16-bit Mono PCM to WAV.
+ * Converts raw PCM audio to a standard WAV file.
  */
 export function pcmToWav(
   pcmBuffer: Buffer,
@@ -29,8 +29,12 @@ export function pcmToWav(
   numChannels = 1,
   bitsPerSample = 16
 ): Buffer {
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const byteRate =
+    (sampleRate * numChannels * bitsPerSample) / 8;
+
+  const blockAlign =
+    (numChannels * bitsPerSample) / 8;
+
   const dataSize = pcmBuffer.length;
 
   const header = Buffer.alloc(44);
@@ -55,7 +59,7 @@ export function pcmToWav(
 }
 
 /**
- * Test Gemini API key.
+ * Tests whether the Gemini API key works.
  */
 export async function testGeminiApiKey(
   apiKey: string
@@ -87,7 +91,10 @@ export async function testGeminiApiKey(
       }
     });
 
-    if (response.candidates && response.candidates.length > 0) {
+    if (
+      response.candidates &&
+      response.candidates.length > 0
+    ) {
       return { valid: true };
     }
 
@@ -96,41 +103,47 @@ export async function testGeminiApiKey(
       error: 'لم يتم استلام رد من Gemini'
     };
   } catch (err: any) {
-    const msg = err?.message || String(err);
+    const message =
+      err?.message || String(err);
 
     if (
-      msg.includes('API_KEY_INVALID') ||
-      msg.includes('401') ||
-      msg.includes('403')
+      message.includes('API_KEY_INVALID') ||
+      message.includes('401') ||
+      message.includes('403')
     ) {
       return {
         valid: false,
-        error: 'مفتاح API غير صالح أو لا يملك الأذونات اللازمة.'
+        error:
+          'مفتاح API غير صالح أو لا يملك الأذونات اللازمة.'
       };
     }
 
     return {
       valid: false,
-      error: msg
+      error: message
     };
   }
 }
 
 /**
- * Generate speech using Gemini TTS.
+ * Generates speech using Gemini TTS.
  */
 export async function generateGeminiTTS(
   apiKey: string,
   options: TTSOptions
 ): Promise<TTSResult> {
   if (!apiKey || !apiKey.trim()) {
-    throw new Error('No API key provided for TTS synthesis');
+    throw new Error(
+      'No API key provided for TTS synthesis'
+    );
   }
 
   const text = options.text?.trim();
 
   if (!text) {
-    throw new Error('No text provided for TTS synthesis');
+    throw new Error(
+      'No text provided for TTS synthesis'
+    );
   }
 
   const ai = new GoogleGenAI({
@@ -151,85 +164,3 @@ export async function generateGeminiTTS(
 
     'إخباري ورسمي':
       'clear, authoritative and formal broadcast tone',
-
-    'بودكاست وحواري':
-      'warm, friendly and conversational podcast tone',
-
-    'تحفيزي وإعلاني':
-      'energetic, enthusiastic and engaging commercial tone'
-  };
-
-  const selectedStyle =
-    styleInstructions[style] || 'clear and natural tone';
-
-  const rateInstruction =
-    rate > 1.1
-      ? 'Speak at a brisk pace.'
-      : rate < 0.9
-        ? 'Speak at a slower, measured pace.'
-        : 'Speak at a natural standard pace.';
-
-  const prompt = `
-Read the following text aloud exactly as written.
-
-Do not add any introduction.
-Do not add any explanation.
-Do not add any conclusion.
-Do not change the words.
-
-Target language: ${language}.
-Speaking style: ${selectedStyle}.
-${rateInstruction}
-
-Text:
-${text}
-`;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-tts',
-
-      contents: prompt,
-
-      config: {
-        responseModalities: ['AUDIO'],
-
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: voice
-            }
-          }
-        }
-      }
-    });
-
-    const parts = response.candidates?.[0]?.content?.parts || [];
-
-    for (const part of parts) {
-      const inlineData = part.inlineData;
-
-      if (!inlineData?.data) {
-        continue;
-      }
-
-      const rawBase64 = inlineData.data;
-      const rawMime = inlineData.mimeType || 'audio/pcm;rate=24000';
-
-      const rawBuffer = Buffer.from(rawBase64, 'base64');
-
-      let sampleRate = 24000;
-
-      const rateMatch = rawMime.match(/rate=(\d+)/);
-
-      if (rateMatch) {
-        sampleRate = parseInt(rateMatch[1], 10);
-      }
-
-      let wavBuffer: Buffer;
-
-      if (
-        rawMime.toLowerCase().includes('pcm') ||
-        rawMime.toLowerCase().includes('l16')
-      ) {
-        wavBuffer =
