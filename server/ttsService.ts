@@ -3,7 +3,7 @@
  * Directly calls official Gemini TTS models with chosen voice, tone, and language.
  * Converts raw PCM audio output to standard playable WAV format.
  */
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export interface TTSOptions {
   text: string;
@@ -64,23 +64,10 @@ export async function testGeminiApiKey(apiKey: string): Promise<{ valid: boolean
     if (!apiKey || apiKey.trim().length < 10) {
       return { valid: false, error: 'مفتاح API غير صالح أو فارغ' };
     }
-    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-    // Quick test with countTokens or lightweight model
-    const testRes = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-tts',
-      contents: 'Test connection',
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Puck',
-            },
-          },
-        },
-      },
-    });
-    if (testRes.candidates && testRes.candidates.length > 0) {
+    const ai = new GoogleGenerativeAI(apiKey.trim());
+    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const testRes = await model.generateContent('Test connection');
+    if (testRes && testRes.response) {
       return { valid: true };
     }
     return { valid: false, error: 'لم يتم استلام رد من النموذج' };
@@ -104,17 +91,15 @@ export async function generateGeminiTTS(
     throw new Error('No API key provided for TTS synthesis');
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenerativeAI(apiKey);
 
   const voice = options.voiceName || 'Puck';
   const language = options.language || 'العربية';
   const style = options.style || 'طبيعي';
   const rate = options.speakingRate || 1.0;
 
-  // Construct a directive that guides speech delivery while keeping the exact words intact
   let promptText = options.text.trim();
   
-  // Style and pacing prompt instruction
   const styleInstructions: Record<string, string> = {
     'طبيعي': 'natural and balanced tone',
     'سردي وقصصي': 'expressive narrative storytelling tone with immersive pacing',
@@ -134,67 +119,54 @@ Delivery style: ${selectedInstruction}, ${rateDesc}.
 User Text:
 ${promptText}`;
 
-  // Use primary TTS model with fallback
   const modelsToTry = [
-    'gemini-2.5-flash-preview-tts',
-    'gemini-3.1-flash-tts-preview',
-    'gemini-2.5-pro-preview-tts',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
   ];
 
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
     try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: systemPrompt,
-        config: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: {
-                voiceName: voice,
-              },
-            },
-          },
-        },
-      });
+      const model = ai.getGenerativeModel({ model: modelName });
+      const response = await model.generateContent(systemPrompt);
+      const result = await response.response;
 
-      const parts = response.candidates?.[0]?.content?.parts || [];
-      for (const part of parts) {
-        if (part.inlineData && part.inlineData.data) {
-          const rawMime = part.inlineData.mimeType || '';
-          const rawBase64 = part.inlineData.data;
-          const rawBuffer = Buffer.from(rawBase64, 'base64');
+      const candidates = result.candidates || [];
+      for (const candidate of candidates) {
+        const parts = candidate.content?.parts || [];
+        for (const part of parts) {
+          if (part.inlineData && part.inlineData.data) {
+            const rawMime = part.inlineData.mimeType || '';
+            const rawBase64 = part.inlineData.data;
+            const rawBuffer = Buffer.from(rawBase64, 'base64');
 
-          let wavBuffer: Buffer;
-          // Determine sample rate from mimeType (e.g. rate=24000)
-          let sampleRate = 24000;
-          if (rawMime.includes('rate=')) {
-            const match = rawMime.match(/rate=(\d+)/);
-            if (match) sampleRate = parseInt(match[1], 10);
+            let wavBuffer: Buffer;
+            let sampleRate = 24000;
+            if (rawMime.includes('rate=')) {
+              const match = rawMime.match(/rate=(\d+)/);
+              if (match) sampleRate = parseInt(match[1], 10);
+            }
+
+            if (rawMime.includes('pcm') || rawMime.includes('L16') || rawMime.includes('l16')) {
+              wavBuffer = pcmToWav(rawBuffer, sampleRate, 1, 16);
+            } else if (rawBuffer.slice(0, 4).toString() === 'RIFF') {
+              wavBuffer = rawBuffer;
+            } else {
+              wavBuffer = pcmToWav(rawBuffer, sampleRate, 1, 16);
+            }
+
+            const wavBase64 = wavBuffer.toString('base64');
+            const audioUrl = `data:audio/wav;base64,${wavBase64}`;
+            const durationEstimate = Math.max(1, Math.round(promptText.length / 15));
+
+            return {
+              audioBase64: wavBase64,
+              mimeType: 'audio/wav',
+              audioUrl,
+              durationEstimateSeconds: durationEstimate,
+            };
           }
-
-          if (rawMime.includes('pcm') || rawMime.includes('L16') || rawMime.includes('l16')) {
-            wavBuffer = pcmToWav(rawBuffer, sampleRate, 1, 16);
-          } else if (rawBuffer.slice(0, 4).toString() === 'RIFF') {
-            // Already WAV
-            wavBuffer = rawBuffer;
-          } else {
-            // Default wrap as 24kHz PCM WAV
-            wavBuffer = pcmToWav(rawBuffer, sampleRate, 1, 16);
-          }
-
-          const wavBase64 = wavBuffer.toString('base64');
-          const audioUrl = `data:audio/wav;base64,${wavBase64}`;
-          const durationEstimate = Math.max(1, Math.round(promptText.length / 15));
-
-          return {
-            audioBase64: wavBase64,
-            mimeType: 'audio/wav',
-            audioUrl,
-            durationEstimateSeconds: durationEstimate,
-          };
         }
       }
 
@@ -202,7 +174,6 @@ ${promptText}`;
     } catch (err: any) {
       lastError = err;
       console.warn(`TTS attempt with model ${modelName} failed:`, err?.message || err);
-      // If error is 404 or model unavailable, try next model in list
       continue;
     }
   }
