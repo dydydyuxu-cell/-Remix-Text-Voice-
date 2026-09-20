@@ -1,215 +1,192 @@
 /**
- * Server-Side UID-Isolated Balance & Quota Manager
+ * Per-user character balance manager
  *
- * Security rules:
- * - Every Firebase user gets an independent 10,000-character allowance.
- * - Balance is strictly keyed by verified Firebase UID.
- * - The site owner's balance is NEVER used for another user.
- * - BYOK does NOT bypass the internal character allowance.
- * - Every successful TTS generation consumes characters from that user's balance.
- * - Balance is stored server-side and synchronized with Firestore.
- * - The allowance renews every 30 days.
- * - Concurrent operations for the same UID are serialized.
- * - Idempotency records are isolated by UID + idempotency key.
- * - Firestore values are validated before being accepted locally.
- *
- * IMPORTANT:
- * This module NEVER accepts a UID from a client request body.
- * The UID must come from the authenticated Firebase token flow
- * handled by apiRouter.ts.
+ * Rules:
+ * - Every Firebase UID gets its own independent 10,000-character balance.
+ * - BYOK does NOT bypass the internal balance.
+ * - Balance is deducted before TTS generation.
+ * - If TTS fails, the deducted characters are refunded.
+ * - All balance operations are isolated by UID.
+ * - File writes are protected by per-UID locks.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-
-import {
-  getFirestoreDoc,
-  setFirestoreDoc,
-} from './firestoreDb.ts';
-
-// ----------------------------------------------------
-// Constants
-// ----------------------------------------------------
 
 export const INITIAL_CHARACTER_ALLOWANCE = 10000;
 
 const THIRTY_DAYS_MS =
   30 * 24 * 60 * 60 * 1000;
 
-const DATA_FILE =
+const BALANCES_FILE =
   path.resolve(
     process.cwd(),
     'server-balances.json'
   );
 
-// ----------------------------------------------------
-// Public types
-// ----------------------------------------------------
-
 export interface UserBalance {
-  uid: string;
-  email?: string;
-
+  userId: string;
   freeCharacters: number;
   usedCharacters: number;
   remainingCharacters: number;
-
-  cycleStartDate: string;
-  nextRenewalDate: string;
-  daysUntilRenewal: number;
-
-  createdAt: string;
+  totalCharacters: number;
+  lastResetAt: string;
+  nextResetAt: string;
   updatedAt: string;
 }
 
-export interface IdempotencyRecord {
-  idempotencyKey: string;
-  uid: string;
+interface StoredBalanceRecord {
+  userId: string;
+  freeCharacters: number;
+  usedCharacters: number;
+  remainingCharacters: number;
+  totalCharacters: number;
+  lastResetAt: string;
+  nextResetAt: string;
+  updatedAt: string;
+}
 
+interface IdempotencyRecord {
+  uid: string;
+  idempotencyKey: string;
   status:
     | 'PROCESSING'
     | 'COMPLETED'
     | 'FAILED';
-
   textLength: number;
-
   responsePayload?: any;
-
-  createdAt: string;
-}
-
-// ----------------------------------------------------
-// Internal persistent types
-// ----------------------------------------------------
-
-interface StoredRecord {
-  uid: string;
-  email?: string;
-
-  freeCharacters: number;
-  usedCharacters: number;
-
-  cycleStartDate: string;
-
   createdAt: string;
   updatedAt: string;
 }
 
-interface StoreSchema {
+const locks = new Map<
+  string,
+  Promise<void>
+>();
+
+const idempotencyStore = new Map<
+  string,
+  IdempotencyRecord
+>();
+
+// ----------------------------------------------------
+// File helpers
+// ----------------------------------------------------
+
+function loadBalances(): Record<
+  string,
+  StoredBalanceRecord
+> {
+  try {
+    if (
+      fs.existsSync(
+        BALANCES_FILE
+      )
+    ) {
+      const raw =
+        fs.readFileSync(
+          BALANCES_FILE,
+          'utf8'
+        );
+
+      if (!raw.trim()) {
+        return {};
+      }
+
+      return JSON.parse(raw);
+    }
+  } catch (error) {
+    console.error(
+      '[Balance] Failed to load balances:',
+      error
+    );
+  }
+
+  return {};
+}
+
+function saveBalances(
   balances: Record<
     string,
-    StoredRecord
-  >;
+    StoredBalanceRecord
+  >
+): void {
+  const tempFile =
+    `${BALANCES_FILE}.tmp`;
 
-  idempotency: Record<
-    string,
-    IdempotencyRecord
-  >;
-}
-
-// ----------------------------------------------------
-// UID locks
-// ----------------------------------------------------
-
-/**
- * One queue/lock per Firebase UID.
- *
- * This prevents:
- * - double deductions
- * - renewal races
- * - concurrent balance initialization
- * - concurrent idempotency writes for the same user
- *
- * Different users do NOT block each other.
- */
-const uidLocks:
-  Map<string, Promise<void>> =
-  new Map();
-
-async function acquireLock(
-  uid: string
-): Promise<() => void> {
-  if (!uid) {
-    throw new Error(
-      'UID is required for lock acquisition'
+  try {
+    fs.writeFileSync(
+      tempFile,
+      JSON.stringify(
+        balances,
+        null,
+        2
+      ),
+      'utf8'
     );
-  }
 
-  /*
-   * Wait for the previous operation belonging
-   * to the same UID.
-   */
-  while (uidLocks.has(uid)) {
-    const previous =
-      uidLocks.get(uid);
+    fs.renameSync(
+      tempFile,
+      BALANCES_FILE
+    );
+  } catch (error) {
+    console.error(
+      '[Balance] Failed to save balances:',
+      error
+    );
 
-    if (previous) {
-      await previous;
-    }
-  }
-
-  let release:
-    () => void = () => {};
-
-  const lockPromise =
-    new Promise<void>(
-      (resolve) => {
-        release = () => {
-          /*
-           * Only remove our own lock if it is
-           * still the active lock.
-           */
-          const active =
-            uidLocks.get(uid);
-
-          if (
-            active ===
-            lockPromise
-          ) {
-            uidLocks.delete(uid);
-          }
-
-          resolve();
-        };
+    try {
+      if (
+        fs.existsSync(
+          tempFile
+        )
+      ) {
+        fs.unlinkSync(
+          tempFile
+        );
       }
-    );
+    } catch {
+      // Ignore cleanup error.
+    }
 
-  uidLocks.set(
-    uid,
-    lockPromise
-  );
-
-  return release;
+    throw error;
+  }
 }
 
 // ----------------------------------------------------
-// Input validation helpers
+// UID validation
 // ----------------------------------------------------
 
-function isValidUid(
+function validateUid(
   uid: string
-): boolean {
-  return (
-    typeof uid === 'string' &&
-    uid.trim().length > 0 &&
-    uid.length <= 256
-  );
+): void {
+  if (
+    !uid ||
+    typeof uid !== 'string' ||
+    uid.trim().length === 0
+  ) {
+    throw new Error(
+      'Invalid user UID'
+    );
+  }
 }
 
-function isFiniteNumber(
-  value: unknown
-): value is number {
-  return (
-    typeof value === 'number' &&
-    Number.isFinite(value)
-  );
+// ----------------------------------------------------
+// Date helpers
+// ----------------------------------------------------
+
+function createResetDate(
+  from: Date
+): string {
+  return new Date(
+    from.getTime() +
+      THIRTY_DAYS_MS
+  ).toISOString();
 }
 
-function safeNonNegativeInteger(
-  value: unknown,
-  fallback: number
-): number {
-  const n =
-    typeof value === 'number'
-      ? value
-      : Number
+// ----------------------------------------------------
+// Create new balance
+// ----------------------------------------------------
+
+function createInitialBalance(
+  uid
