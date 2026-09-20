@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Mic,
   Sparkles,
@@ -15,109 +15,53 @@ import {
   Activity,
   Calendar,
 } from 'lucide-react';
+
 import { useAuth } from '../firebase/authContext';
 import { generateTTS } from '../services/apiClient';
-import {
-  TTSVoice,
-  UserBalance,
+import type {
+  BalanceInfo,
   UserSettings,
-  TTSGeneration,
-  GenerationStatus,
-} from '../types/tts';
-import { ALL_30_GEMINI_VOICES } from '../data/voices';
-import { AudioPlayer } from './AudioPlayer';
+  VoiceOption,
+} from '../types';
 
-const SAMPLE_TEXTS = [
-  {
-    title: 'قصيدة عربية فصحى',
-    text: 'وَما نَيلُ المَطالِبِ بِالتَمَنّي\nوَلَكِن تُؤخَذُ الدُنيا غِلابا\nوَما اِستَعصى عَلى قَومٍ مَنالٌ\إِذا كانَ الإِقدامُ لَهُم رِكابا',
-    voice: 'Charon',
-    style: 'سردي وقصصي',
-  },
-  {
-    title: 'نشرة تقنية وإخبارية',
-    text: 'أعلنت شركة جوجل عن أحدث نماذج الذكاء الاصطناعي لتحويل النص إلى كلام، مع تمكين المطورين من بناء حلول صوتية فائقة الواقعية تدعم اللغة العربية بدقة استثنائية ونبرات صوتية طبيعية.',
-    voice: 'Puck',
-    style: 'إخباري ورسمي',
-  },
-  {
-    title: 'مقدمة بودكاست ثقافي',
-    text: 'أهلاً بكم في حلقة جديدة من بودكاست آفاق المعرفة. سنتحدث اليوم عن رحلة الإنسان مع اللغة والصوت، وكيف شكّلت الكلمة المنطوقة جسور التواصل عبر آلاف السنين.',
-    voice: 'Aoede',
-    style: 'بودكاست وحواري',
-  },
-  {
-    title: 'إعلان تسويقي تحفيزي',
-    text: 'انطلق بأفكارك إلى مستوى جديد كلياً. صمم منصتك اليوم بقوة تقنيات الذكاء الاصطناعي الأكثر تطوراً واستمتع بسرعة وأداء لا يضاهى.',
-    voice: 'Fenrir',
-    style: 'تحفيزي وإعلاني',
-  },
-];
-
-const PERFORMANCE_STYLES = [
-  'طبيعي',
-  'سردي وقصصي',
-  'إخباري ورسمي',
-  'بودكاست وحواري',
-  'تحفيزي وإعلاني',
-];
-
-const LANGUAGES = [
-  'العربية',
-  'English (US)',
-  'English (UK)',
-  'Français',
-  'Español',
-  'Deutsch',
-  'Türkçe',
-];
+import { VOICES } from '../data/voices';
+import AudioPlayer from './AudioPlayer';
 
 interface TTSStudioProps {
-  balance: UserBalance | null;
+  balance: BalanceInfo | null;
   settings: UserSettings | null;
-  onRefreshBalance: () => void;
-  onOpenAuth: () => void;
-  onNavigateToByok: () => void;
-  onGenerationComplete: (gen: TTSGeneration) => void;
+  onNavigate: (page: string) => void;
+  onBalanceRefresh: () => Promise<void> | void;
 }
 
-export function TTSStudio({
-  balance,
-  settings,
-  onRefreshBalance,
-  onOpenAuth,
-  onNavigateToByok,
-  onGenerationComplete,
-}: TTSStudioProps) {
-  const { getIdToken, user } = useAuth();
+type GenerationStatus =
+  | 'IDLE'
+  | 'QUEUED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED';
 
-  const [text, setText] = useState<string>(
-    'مرحباً بك في منصة تحويل النص إلى كلام الاحترافية عبر نماذج Google Gemini. اكتب أي نص وسأقوم بتحويله إلى نطق صوتي فائق النقاء فوراً.'
-  );
+const MAX_TEXT_LENGTH = 15000;
 
-  const [selectedVoice, setSelectedVoice] = useState<string>(
-    settings?.preferredVoice || 'Puck'
-  );
-
-  const [voiceGenderFilter, setVoiceGenderFilter] = useState<
-    'ALL' | 'male' | 'female'
-  >('ALL');
-
-  const [voiceSearch, setVoiceSearch] = useState<string>('');
-
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(
-    settings?.preferredLanguage || 'العربية'
-  );
-
-  const [selectedStyle, setSelectedStyle] = useState<string>(
-    settings?.style || 'طبيعي'
-  );
-
-  const [speakingRate, setSpeakingRate] = useState<number>(
-    settings?.speakingRate || 1.0
-  );
-
-  const currentVoiceObj = useMemo(() => {
-    return (
-      ALL_30_GEMINI_VOICES.find((v) => v.id === selectedVoice) ||
-      ALL_30_GEMINI_VOICES
+const GOOGLE_ICON = (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1
