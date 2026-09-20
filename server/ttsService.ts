@@ -1,13 +1,22 @@
 /**
  * Server-side Gemini TTS Integration
- * Uses Google's Gemini TTS models and converts raw PCM audio to WAV.
+ *
+ * IMPORTANT:
+ * This service NEVER reads or uses the site's GEMINI_API_KEY.
+ * The caller MUST provide the individual user's Gemini API key.
  */
 
 import { GoogleGenAI } from '@google/genai';
 
 export interface TTSOptions {
   text: string;
-  voiceName: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Aoede' | string;
+  voiceName:
+    | 'Puck'
+    | 'Charon'
+    | 'Kore'
+    | 'Fenrir'
+    | 'Aoede'
+    | string;
   language?: string;
   speakingRate?: number;
   style?: string;
@@ -55,107 +64,165 @@ export function pcmToWav(
   header.write('data', 36);
   header.writeUInt32LE(dataSize, 40);
 
-  return Buffer.concat([header, pcmBuffer]);
+  return Buffer.concat([
+    header,
+    pcmBuffer,
+  ]);
 }
 
 /**
- * Tests whether the Gemini API key works.
+ * Tests a USER-PROVIDED Gemini API key.
+ *
+ * This function does not use any environment key
+ * and does not fall back to a site key.
  */
 export async function testGeminiApiKey(
   apiKey: string
-): Promise<{ valid: boolean; error?: string }> {
+): Promise<{
+  valid: boolean;
+  error?: string;
+}> {
   try {
-    if (!apiKey || apiKey.trim().length < 10) {
+    const cleanKey =
+      apiKey?.trim();
+
+    if (
+      !cleanKey ||
+      cleanKey.length < 10
+    ) {
       return {
         valid: false,
-        error: 'مفتاح API غير صالح أو فارغ'
+        error:
+          'مفتاح Gemini API غير صالح أو فارغ.',
       };
     }
 
-    const ai = new GoogleGenAI({
-      apiKey: apiKey.trim()
-    });
+    const ai =
+      new GoogleGenAI({
+        apiKey: cleanKey,
+      });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-tts',
-      contents: 'Test connection',
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Puck'
-            }
-          }
-        }
-      }
-    });
+    const response =
+      await ai.models.generateContent({
+        model:
+          'gemini-2.5-flash-preview-tts',
+
+        contents:
+          'Test connection',
+
+        config: {
+          responseModalities: [
+            'AUDIO',
+          ],
+
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName:
+                  'Puck',
+              },
+            },
+          },
+        },
+      });
 
     if (
       response.candidates &&
       response.candidates.length > 0
     ) {
-      return { valid: true };
+      return {
+        valid: true,
+      };
     }
 
     return {
       valid: false,
-      error: 'لم يتم استلام رد من Gemini'
+      error:
+        'لم يتم استلام رد من Gemini.',
     };
   } catch (err: any) {
     const message =
-      err?.message || String(err);
+      err?.message ||
+      String(err);
 
     if (
-      message.includes('API_KEY_INVALID') ||
+      message.includes(
+        'API_KEY_INVALID'
+      ) ||
       message.includes('401') ||
       message.includes('403')
     ) {
       return {
         valid: false,
         error:
-          'مفتاح API غير صالح أو لا يملك الأذونات اللازمة.'
+          'مفتاح Gemini الخاص بالمستخدم غير صالح أو لا يملك الصلاحيات اللازمة.',
       };
     }
 
     return {
       valid: false,
-      error: message
+      error: message,
     };
   }
 }
 
 /**
- * Generates speech using Gemini TTS.
+ * Generates speech using ONLY the Gemini API key
+ * explicitly provided by the caller.
+ *
+ * The caller is responsible for supplying the
+ * authenticated user's own key.
  */
 export async function generateGeminiTTS(
-  apiKey: string,
+  userGeminiApiKey: string,
   options: TTSOptions
 ): Promise<TTSResult> {
-  if (!apiKey || !apiKey.trim()) {
+  const cleanKey =
+    userGeminiApiKey?.trim();
+
+  if (!cleanKey) {
     throw new Error(
-      'No API key provided for TTS synthesis'
+      'لم يتم توفير مفتاح Gemini الخاص بالمستخدم.'
     );
   }
 
-  const text = options.text?.trim();
+  const text =
+    options.text?.trim();
 
   if (!text) {
     throw new Error(
-      'No text provided for TTS synthesis'
+      'لم يتم توفير نص لتحويله إلى صوت.'
     );
   }
 
-  const ai = new GoogleGenAI({
-    apiKey: apiKey.trim()
-  });
+  // IMPORTANT:
+  // This client is created ONLY with the
+  // authenticated user's supplied Gemini key.
+  const ai =
+    new GoogleGenAI({
+      apiKey: cleanKey,
+    });
 
-  const voice = options.voiceName || 'Puck';
-  const language = options.language || 'Arabic';
-  const style = options.style || 'طبيعي';
-  const rate = options.speakingRate ?? 1.0;
+  const voice =
+    options.voiceName ||
+    'Puck';
 
-  const styleInstructions: Record<string, string> = {
+  const language =
+    options.language ||
+    'Arabic';
+
+  const style =
+    options.style ||
+    'طبيعي';
+
+  const rate =
+    options.speakingRate ??
+    1.0;
+
+  const styleInstructions: Record<
+    string,
+    string
+  > = {
     'طبيعي':
       'natural, clear and balanced tone',
 
@@ -169,7 +236,7 @@ export async function generateGeminiTTS(
       'warm, friendly and conversational podcast tone',
 
     'تحفيزي وإعلاني':
-      'energetic, enthusiastic and engaging commercial tone'
+      'energetic, enthusiastic and engaging commercial tone',
   };
 
   const selectedStyle =
@@ -202,50 +269,69 @@ ${text}
   try {
     const response =
       await ai.models.generateContent({
-        model: 'gemini-2.5-flash-preview-tts',
+        model:
+          'gemini-2.5-flash-preview-tts',
 
-        contents: prompt,
+        contents:
+          prompt,
 
         config: {
-          responseModalities: ['AUDIO'],
+          responseModalities: [
+            'AUDIO',
+          ],
 
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: {
-                voiceName: voice
-              }
-            }
-          }
-        }
+                voiceName:
+                  voice,
+              },
+            },
+          },
+        },
       });
 
     const parts =
-      response.candidates?.[0]?.content?.parts || [];
+      response
+        .candidates?.[0]
+        ?.content?.parts || [];
 
     for (const part of parts) {
-      const inlineData = part.inlineData;
+      const inlineData =
+        part.inlineData;
 
-      if (!inlineData?.data) {
+      if (
+        !inlineData?.data
+      ) {
         continue;
       }
 
-      const rawBase64 = inlineData.data;
+      const rawBase64 =
+        inlineData.data;
 
       const rawMime =
         inlineData.mimeType ||
         'audio/pcm;rate=24000';
 
       const rawBuffer =
-        Buffer.from(rawBase64, 'base64');
+        Buffer.from(
+          rawBase64,
+          'base64'
+        );
 
       let sampleRate = 24000;
 
       const rateMatch =
-        rawMime.match(/rate=(\d+)/);
+        rawMime.match(
+          /rate=(\d+)/
+        );
 
       if (rateMatch) {
         sampleRate =
-          parseInt(rateMatch[1], 10);
+          parseInt(
+            rateMatch[1],
+            10
+          );
       }
 
       let wavBuffer: Buffer;
@@ -257,29 +343,34 @@ ${text}
         mimeLower.includes('pcm') ||
         mimeLower.includes('l16')
       ) {
-        wavBuffer = pcmToWav(
-          rawBuffer,
-          sampleRate,
-          1,
-          16
-        );
+        wavBuffer =
+          pcmToWav(
+            rawBuffer,
+            sampleRate,
+            1,
+            16
+          );
       } else if (
         rawBuffer
           .slice(0, 4)
           .toString() === 'RIFF'
       ) {
-        wavBuffer = rawBuffer;
+        wavBuffer =
+          rawBuffer;
       } else {
-        wavBuffer = pcmToWav(
-          rawBuffer,
-          sampleRate,
-          1,
-          16
-        );
+        wavBuffer =
+          pcmToWav(
+            rawBuffer,
+            sampleRate,
+            1,
+            16
+          );
       }
 
       const wavBase64 =
-        wavBuffer.toString('base64');
+        wavBuffer.toString(
+          'base64'
+        );
 
       const audioUrl =
         `data:audio/wav;base64,${wavBase64}`;
@@ -287,23 +378,31 @@ ${text}
       const durationEstimateSeconds =
         Math.max(
           1,
-          Math.round(text.length / 15)
+          Math.round(
+            text.length / 15
+          )
         );
 
       return {
-        audioBase64: wavBase64,
-        mimeType: 'audio/wav',
+        audioBase64:
+          wavBase64,
+
+        mimeType:
+          'audio/wav',
+
         audioUrl,
-        durationEstimateSeconds
+
+        durationEstimateSeconds,
       };
     }
 
     throw new Error(
-      'Gemini TTS returned no audio data'
+      'Gemini TTS returned no audio data.'
     );
   } catch (err: any) {
     const message =
-      err?.message || String(err);
+      err?.message ||
+      String(err);
 
     console.error(
       'Gemini TTS error:',
