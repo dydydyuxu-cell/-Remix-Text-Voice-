@@ -1,398 +1,801 @@
-import { TTSVoice } from '../types/tts';
-import puckImg from '../assets/images/ai_voice_puck_1789587497983.jpg';
-import aoedeImg from '../assets/images/ai_voice_aoede_1789587510659.jpg';
-import charonImg from '../assets/images/ai_voice_charon_1789587523989.jpg';
-import koreImg from '../assets/images/ai_voice_kore_1789587535400.jpg';
+import React, { useMemo, useState } from 'react';
+import {
+  Sparkles,
+  Volume2,
+  Globe,
+  Sliders,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  KeyRound,
+  ShieldCheck,
+  Activity,
+} from 'lucide-react';
 
-export const ALL_30_GEMINI_VOICES: TTSVoice[] = [
-  // 1
-  {
-    id: 'Puck',
-    name: 'Puck',
-    gender: 'male',
-    arabicTitle: 'باك (Puck)',
-    description: 'صوت شبابي مفعم بالحيوية، مرن ومريح للاستماع اليومي والمحادثات السريعة.',
-    badge: 'حيوي وشبابي',
-    avatarColor: 'from-cyan-500 to-blue-600',
-    avatarUrl: puckImg,
-    tone: 'حيوي',
-    tags: ['بودكاست', 'حواري', 'يومي'],
-  },
-  // 2
-  {
-    id: 'Charon',
-    name: 'Charon',
-    gender: 'male',
-    arabicTitle: 'شارون (Charon)',
-    description: 'صوت عميق ورصين بنبرة وثائقية موثوقة تناسب الأخبار والشروحات الرسمية.',
-    badge: 'عميق ورسمي',
-    avatarColor: 'from-indigo-600 to-purple-700',
-    avatarUrl: charonImg,
-    tone: 'رصين',
-    tags: ['وثائقي', 'إخباري', 'فصيح'],
-  },
-  // 3
-  {
-    id: 'Kore',
-    name: 'Kore',
-    gender: 'female',
-    arabicTitle: 'كوري (Kore)',
-    description: 'صوت أنثوي متوازن، نقي وواضح النطق ومناسب للكتب الصوتية والمحتوى التعليمي.',
-    badge: 'نقي ومتوازن',
-    avatarColor: 'from-rose-500 to-pink-600',
-    avatarUrl: koreImg,
-    tone: 'تعليمي',
-    tags: ['كتب صوتية', 'تعليمي', 'واضح'],
-  },
-  // 4
-  {
-    id: 'Fenrir',
-    name: 'Fenrir',
-    gender: 'male',
-    arabicTitle: 'فنرير (Fenrir)',
-    description: 'صوت قوي وجذاب ذو حضور واثق، ممتاز للإعلانات والنصوص التحفيزية.',
-    badge: 'قوي ومؤثر',
-    avatarColor: 'from-amber-500 to-orange-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'تحفيزي',
-    tags: ['إعلاني', 'حماسي', 'تسويق'],
-  },
-  // 5
-  {
-    id: 'Aoede',
-    name: 'Aoede',
-    gender: 'female',
-    arabicTitle: 'أويدي (Aoede)',
-    description: 'صوت أنثوي دافئ ولحني يوحي بالألفة والهدوء، رائع للبودكاست والتأمل.',
-    badge: 'دافئ ولحني',
-    avatarColor: 'from-emerald-500 to-teal-600',
-    avatarUrl: aoedeImg,
-    tone: 'دافئ',
-    tags: ['تأمل', 'قصصي', 'مريح'],
-  },
-  // 6
-  {
-    id: 'Zephyr',
-    name: 'Zephyr',
-    gender: 'female',
-    arabicTitle: 'زفير (Zephyr)',
-    description: 'نبرة هادئة ورقيقة كانسياب النسيم، مثالية للمساعدات الذكية والاسترخاء.',
-    badge: 'ناعم وانسيابي',
-    avatarColor: 'from-sky-400 to-cyan-500',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'هادئ',
-    tags: ['مساعد ذكي', 'استرخاء', 'خفيف'],
-  },
-  // 7
-  {
-    id: 'Enceladus',
-    name: 'Enceladus',
-    gender: 'male',
-    arabicTitle: 'إنسيلادوس (Enceladus)',
-    description: 'صوت جهوري مصقول وواضح الحروف، يعطي فخامة للنصوص الأدبية الرفيعة.',
-    badge: 'جهوري وفخم',
-    avatarColor: 'from-blue-600 to-indigo-800',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'فخم',
-    tags: ['أدبي', 'شعر', 'كلاسيكي'],
-  },
-  // 8
-  {
-    id: 'Achernar',
-    name: 'Achernar',
-    gender: 'female',
-    arabicTitle: 'أخرنار (Achernar)',
-    description: 'صوت أنثوي ساطع وحيوي، نبرة متفائلة تناسب الفيديوهات القصيرة والشروحات التفاعلية.',
-    badge: 'ساطع ومتفائل',
-    avatarColor: 'from-yellow-500 to-amber-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'مشرق',
-    tags: ['سوشيال ميديا', 'ريلز', 'تفاعل'],
-  },
-  // 9
-  {
-    id: 'Achird',
-    name: 'Achird',
-    gender: 'male',
-    arabicTitle: 'أخيرد (Achird)',
-    description: 'صوت رجالي ودود ذو طابع قصصي يشد المستمع في الروايات والدراما الصوتية.',
-    badge: 'راوي قصصي',
-    avatarColor: 'from-teal-600 to-emerald-700',
-    avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'سردي',
-    tags: ['روايات', 'قصص', 'تاريخ'],
-  },
-  // 10
-  {
-    id: 'Algenib',
-    name: 'Algenib',
-    gender: 'male',
-    arabicTitle: 'الجناب (Algenib)',
-    description: 'نبرة مهنية احترافية تشبه مذيعي الأخبار والقنوات الاقتصادية العالمية.',
-    badge: 'مذيع إخباري',
-    avatarColor: 'from-slate-600 to-slate-800',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'احترافي',
-    tags: ['اقتصاد', 'أخبار', 'تقارير'],
-  },
-  // 11
-  {
-    id: 'Callirrhoe',
-    name: 'Callirrhoe',
-    gender: 'female',
-    arabicTitle: 'كاليرهوي (Callirrhoe)',
-    description: 'صوت شاعري رنان مع مخارج حروف عربية دقيقة جداً، يلائم الإلقاء المسرحي.',
-    badge: 'شاعري معبر',
-    avatarColor: 'from-fuchsia-500 to-purple-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'شاعري',
-    tags: ['شعر فصيح', 'مسرحي', 'تعبير'],
-  },
-  // 12
-  {
-    id: 'Capella',
-    name: 'Capella',
-    gender: 'female',
-    arabicTitle: 'العيوق (Capella)',
-    description: 'نبرة لطيفة ومبهجة، ممتازة للتطبيقات التفاعلية وخدمة العملاء الآلية.',
-    badge: 'لطيف ومبهج',
-    avatarColor: 'from-pink-500 to-rose-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'ودود',
-    tags: ['خدمة عملاء', 'تطبيقات', 'تفاعل'],
-  },
-  // 13
-  {
-    id: 'Despina',
-    name: 'Despina',
-    gender: 'female',
-    arabicTitle: 'ديسبينا (Despina)',
-    description: 'صوت تأملي عميق مع إيقاع هادئ يمنح السكينة وراحة البال عند الاستماع المطول.',
-    badge: 'سكينة وتأمل',
-    avatarColor: 'from-indigo-400 to-blue-500',
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'تأملي',
-    tags: ['استرخاء', 'تأمل', 'نوم'],
-  },
-  // 14
-  {
-    id: 'Dipper',
-    name: 'Dipper',
-    gender: 'male',
-    arabicTitle: 'ديبر (Dipper)',
-    description: 'نبرة عفوية وغير متكلفة تحاكي الأصدقاء، تناسب الحوارات واليوتيوب.',
-    badge: 'عفوي وطبيعي',
-    avatarColor: 'from-amber-600 to-yellow-700',
-    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'عفوي',
-    tags: ['يوتيوب', 'فلوجات', 'حوار'],
-  },
-  // 15
-  {
-    id: 'Eclipse',
-    name: 'Eclipse',
-    gender: 'female',
-    arabicTitle: 'إكليبس (Eclipse)',
-    description: 'نبرة سينمائية درامية ذات وقع مثير ومشوق، تلائم الإعلانات التشويقية للأفلام.',
-    badge: 'سينمائي درامي',
-    avatarColor: 'from-purple-800 to-slate-900',
-    avatarUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'درامي',
-    tags: ['سينما', 'تريلر', 'إثارة'],
-  },
-  // 16
-  {
-    id: 'Gacrux',
-    name: 'Gacrux',
-    gender: 'male',
-    arabicTitle: 'جاكروكس (Gacrux)',
-    description: 'صوت أكاديمي جاد ومستقر، مثالي للمحاضرات الجامعية والأوراق البحثية.',
-    badge: 'أكاديمي جاد',
-    avatarColor: 'from-stone-600 to-stone-800',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'أكاديمي',
-    tags: ['محاضرات', 'أبحاث', 'جامعي'],
-  },
-  // 17
-  {
-    id: 'Iapetus',
-    name: 'Iapetus',
-    gender: 'male',
-    arabicTitle: 'إيابيتوس (Iapetus)',
-    description: 'نبرة حكيمة وهادئة تشبه صوت المفكرين، ملائمة للوثائقيات الفلسفية والتاريخية.',
-    badge: 'حكيم وفلسفي',
-    avatarColor: 'from-slate-700 to-indigo-900',
-    avatarUrl: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'حكيم',
-    tags: ['فلسفة', 'تاريخ', 'سير ذاتية'],
-  },
-  // 18
-  {
-    id: 'Lyra',
-    name: 'Lyra',
-    gender: 'female',
-    arabicTitle: 'قيثارة (Lyra)',
-    description: 'صوت موسيقي ناعم كأوتار القيثارة، يبهر المستمع في النصوص الرومانسية والأدبية.',
-    badge: 'موسيقي ناعم',
-    avatarColor: 'from-violet-500 to-purple-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'موسيقي',
-    tags: ['أدب', 'خواطر', 'بودكاست'],
-  },
-  // 19
-  {
-    id: 'Nova',
-    name: 'Nova',
-    gender: 'female',
-    arabicTitle: 'نوفا (Nova)',
-    description: 'صوت عصري مستقبلي مليء بالطاقة والذكاء، مناسب للشركات التقنية والـ SaaS.',
-    badge: 'تقني حديث',
-    avatarColor: 'from-cyan-400 to-blue-500',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'تقني',
-    tags: ['ذكاء اصطناعي', 'تطبيقات', 'تقنية'],
-  },
-  // 20
-  {
-    id: 'Orbit',
-    name: 'Orbit',
-    gender: 'male',
-    arabicTitle: 'أوربت (Orbit)',
-    description: 'نبرة سريعة البديهة والوضوح، رائعة للبرامج الرياضية والتقارير الميدانية.',
-    badge: 'ديناميكي سريع',
-    avatarColor: 'from-blue-500 to-teal-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'ديناميكي',
-    tags: ['رياضة', 'ميداني', 'سريع'],
-  },
-  // 21
-  {
-    id: 'Orion',
-    name: 'Orion',
-    gender: 'male',
-    arabicTitle: 'الجبار (Orion)',
-    description: 'صوت بطولي ملهم يملأ النفس ثقة وحماسة، رائع للمقدمات الملحمية والقيادية.',
-    badge: 'بطولي وملهم',
-    avatarColor: 'from-orange-600 to-red-700',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'ملهم',
-    tags: ['قيادي', 'تحفيز', 'ملحمي'],
-  },
-  // 22
-  {
-    id: 'Pegasus',
-    name: 'Pegasus',
-    gender: 'male',
-    arabicTitle: 'الفرس الأعظم (Pegasus)',
-    description: 'نبرة مغامرة مبهجة تلهم الخيال في كتب الأطفال والمغامرات التفاعلية.',
-    badge: 'مغامرة وخيال',
-    avatarColor: 'from-emerald-600 to-cyan-700',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'خيالي',
-    tags: ['أطفال', 'مغامرات', 'رسوم متحركة'],
-  },
-  // 23
-  {
-    id: 'Sulafat',
-    name: 'Sulafat',
-    gender: 'female',
-    arabicTitle: 'السلحفاة (Sulafat)',
-    description: 'صوت تنفيذي راقٍ يجمع بين الحزم والأناقة، ملائم للاجتماعات والعروض التقديمية.',
-    badge: 'تنفيذي راقٍ',
-    avatarColor: 'from-teal-500 to-emerald-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'تنفيذي',
-    tags: ['شركات', 'عروض', 'رسمي'],
-  },
-  // 24
-  {
-    id: 'Umbriel',
-    name: 'Umbriel',
-    gender: 'male',
-    arabicTitle: 'أمبریيل (Umbriel)',
-    description: 'صوت جهوري غامض بنبرة ساحرة، يناسب روايات الخيال العلمي والغموض.',
-    badge: 'غامض ومثير',
-    avatarColor: 'from-purple-900 to-indigo-950',
-    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'غامض',
-    tags: ['خيال علمي', 'غموض', 'رعب'],
-  },
-  // 25
-  {
-    id: 'Ursa',
-    name: 'Ursa',
-    gender: 'female',
-    arabicTitle: 'الدب الأكبر (Ursa)',
-    description: 'نبرة أمومية دافئة تبعث الطمأنينة، مناسبة للإرشاد النفسي والنصائح الأسرية.',
-    badge: 'حنون ومطمئن',
-    avatarColor: 'from-rose-400 to-amber-500',
-    avatarUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'حنون',
-    tags: ['أسري', 'تربوي', 'إرشاد'],
-  },
-  // 26
-  {
-    id: 'Vega',
-    name: 'Vega',
-    gender: 'female',
-    arabicTitle: 'النسر الواقع (Vega)',
-    description: 'صوت بلوري النقاء فائق الوضوح في مخارج الحروف، ممتاز للدورات التفاعلية.',
-    badge: 'بلوري ونقي',
-    avatarColor: 'from-cyan-300 to-blue-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'نقي',
-    tags: ['دورات', 'تدريب', 'وضوح'],
-  },
-  // 27
-  {
-    id: 'Vindemiatrix',
-    name: 'Vindemiatrix',
-    gender: 'female',
-    arabicTitle: 'مقدم القِطاف (Vindemiatrix)',
-    description: 'نبرة دبلوماسية رفيعة المستوى تتمتع بهدوء وجاذبية صوتية استثنائية.',
-    badge: 'دبلوماسي هادئ',
-    avatarColor: 'from-pink-600 to-purple-800',
-    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'دبلوماسي',
-    tags: ['دبلوماسي', 'مؤتمرات', 'خطاب'],
-  },
-  // 28
-  {
-    id: 'Zubenelgenubi',
-    name: 'Zubenelgenubi',
-    gender: 'male',
-    arabicTitle: 'الزبانا الجنوبي (Zuben)',
-    description: 'صوت موزون وموثوق يمنح المستمع شعوراً بالأمان والمصداقية في الشروحات.',
-    badge: 'موثوق وموزون',
-    avatarColor: 'from-emerald-700 to-slate-800',
-    avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'موثوق',
-    tags: ['تعليم', 'قانوني', 'إرشادي'],
-  },
-  // 29
-  {
-    id: 'Sadalbari',
-    name: 'Sadalbari',
-    gender: 'female',
-    arabicTitle: 'سعد البارع (Sadalbari)',
-    description: 'صوت مشرق ومحبب ينبض بالتفاؤل، يلائم إعلانات الموضة والسفر واللايف ستايل.',
-    badge: 'مشرق وعصري',
-    avatarColor: 'from-amber-400 to-rose-500',
-    avatarUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'مشرق',
-    tags: ['لايف ستايل', 'سياحة', 'إعلانات'],
-  },
-  // 30
-  {
-    id: 'Castor',
-    name: 'Castor',
-    gender: 'male',
-    arabicTitle: 'رأس التوأم (Castor)',
-    description: 'نبرة تفاعلية تشاركية مريحة، مثالية للمحادثة الصوتية المستمرة وبناء الألفة.',
-    badge: 'تشاركي وودود',
-    avatarColor: 'from-indigo-500 to-cyan-600',
-    avatarUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=400&h=400&q=80',
-    tone: 'تشاركي',
-    tags: ['محادثة', 'مساعد شخصي', 'ألعاب'],
-  },
-];
+import { useAuth } from '../contexts/AuthContext';
+import { generateTTS } from '../services/apiClient';
+import { ALL_30_GEMINI_VOICES } from '../data/voices';
+
+type TTSStudioProps = {
+  balance?: any;
+  settings?: any;
+  onBalanceRefresh?: () => void | Promise<void>;
+};
+
+type GenerationStatus =
+  | 'idle'
+  | 'generating'
+  | 'success'
+  | 'error';
+
+const MAX_TEXT_LENGTH = 5000;
+
+const voiceValue = (voice: unknown): string => {
+  if (!voice || typeof voice !== 'object') {
+    return '';
+  }
+
+  const item = voice as Record<string, unknown>;
+
+  return String(
+    item.id ??
+      item.name ??
+      item.voiceName ??
+      ''
+  );
+};
+
+const voiceLabel = (voice: unknown): string => {
+  if (!voice || typeof voice !== 'object') {
+    return 'صوت';
+  }
+
+  const item = voice as Record<string, unknown>;
+
+  return String(
+    item.arabicTitle ??
+      item.name ??
+      item.id ??
+      'صوت'
+  );
+};
+
+export default function TTSStudio({
+  balance,
+  settings,
+  onBalanceRefresh,
+}: TTSStudioProps) {
+  const { user } = useAuth();
+
+  const [text, setText] = useState('');
+  const [selectedVoice, setSelectedVoice] = useState('');
+  const [language, setLanguage] = useState('ar');
+  const [style, setStyle] = useState('natural');
+  const [speakingRate, setSpeakingRate] = useState(1);
+
+  const [status, setStatus] =
+    useState<GenerationStatus>('idle');
+
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] =
+    useState('');
+
+  const [audioUrl, setAudioUrl] = useState('');
+
+  const voices = useMemo(
+    () =>
+      Array.isArray(ALL_30_GEMINI_VOICES)
+        ? ALL_30_GEMINI_VOICES
+        : [],
+    []
+  );
+
+  const selectedVoiceObject = useMemo(() => {
+    return voices.find(
+      (voice) => voiceValue(voice) === selectedVoice
+    );
+  }, [voices, selectedVoice]);
+
+  const selectedVoiceName = useMemo(() => {
+    if (!selectedVoiceObject) {
+      return selectedVoice;
+    }
+
+    const item = selectedVoiceObject as Record<
+      string,
+      unknown
+    >;
+
+    return String(
+      item.name ??
+        item.id ??
+        selectedVoice
+    );
+  }, [selectedVoiceObject, selectedVoice]);
+
+  const characterCount = text.length;
+
+  const remainingCharacters = useMemo(() => {
+    const available =
+      Number(
+        balance?.remainingCharacters ??
+          balance?.remaining ??
+          balance?.charactersRemaining ??
+          0
+      ) || 0;
+
+    return Math.max(
+      0,
+      available - characterCount
+    );
+  }, [balance, characterCount]);
+
+  const hasGeminiKey =
+    settings?.provider === 'gemini' ||
+    settings?.provider === 'byok' ||
+    Boolean(settings?.geminiApiKeyMasked) ||
+    Boolean(settings?.apiKeyMasked);
+
+  const isBusy = status === 'generating';
+
+  const canGenerate =
+    text.trim().length > 0 &&
+    text.length <= MAX_TEXT_LENGTH &&
+    Boolean(selectedVoice) &&
+    !isBusy &&
+    remainingCharacters >= 0;
+
+  const handleGenerate = async () => {
+    if (!canGenerate) {
+      return;
+    }
+
+    setStatus('generating');
+    setError('');
+    setSuccessMessage('');
+    setAudioUrl('');
+
+    try {
+      const currentUser =
+        user as any;
+
+      let token: string | undefined;
+
+      if (
+        currentUser &&
+        typeof currentUser.getIdToken ===
+          'function'
+      ) {
+        token =
+          await currentUser.getIdToken();
+      }
+
+      const generate =
+        generateTTS as unknown as (
+          ...args: any[]
+        ) => Promise<any>;
+
+      let result: any;
+
+      try {
+        result = await generate({
+          text: text.trim(),
+          voiceName: selectedVoiceName,
+          language,
+          style,
+          speakingRate,
+          token,
+          idToken: token,
+        });
+      } catch (firstError) {
+        result = await generate(
+          token,
+          {
+            text: text.trim(),
+            voiceName: selectedVoiceName,
+            language,
+            style,
+            speakingRate,
+          }
+        );
+      }
+
+      const directUrl =
+        result?.audioUrl ??
+        result?.url ??
+        result?.data?.audioUrl ??
+        result?.data?.url ??
+        result?.result?.audioUrl ??
+        result?.result?.url ??
+        '';
+
+      const base64 =
+        result?.audioBase64 ??
+        result?.base64 ??
+        result?.audio ??
+        result?.data?.audioBase64 ??
+        result?.data?.base64 ??
+        result?.result?.audioBase64 ??
+        result?.result?.base64 ??
+        '';
+
+      let finalAudioUrl = '';
+
+      if (directUrl) {
+        finalAudioUrl = String(
+          directUrl
+        );
+      } else if (base64) {
+        finalAudioUrl =
+          `data:audio/wav;base64,${String(
+            base64
+          )}`;
+      }
+
+      if (!finalAudioUrl) {
+        throw new Error(
+          'تم إنشاء الطلب لكن لم يتم استلام ملف الصوت.'
+        );
+      }
+
+      setAudioUrl(finalAudioUrl);
+      setStatus('success');
+      setSuccessMessage(
+        'تم إنشاء الصوت بنجاح.'
+      );
+
+      if (onBalanceRefresh) {
+        await onBalanceRefresh();
+      }
+    } catch (err: any) {
+      console.error(
+        'TTS generation error:',
+        err
+      );
+
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'حدث خطأ أثناء إنشاء الصوت.';
+
+      setError(String(message));
+      setStatus('error');
+    }
+  };
+
+  const handleDownload = () => {
+    if (!audioUrl) {
+      return;
+    }
+
+    const link =
+      document.createElement('a');
+
+    link.href = audioUrl;
+    link.download =
+      'generated-voice.wav';
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  return (
+    <main
+      dir="rtl"
+      className="min-h-screen bg-slate-950 text-white"
+    >
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-400">
+              <Volume2
+                size={25}
+              />
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-bold sm:text-3xl">
+                استوديو تحويل النص إلى صوت
+              </h1>
+
+              <p className="mt-1 text-sm text-slate-400">
+                أنشئ صوتًا طبيعيًا باستخدام
+                Gemini TTS
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+          {/* Main */}
+          <section className="space-y-6">
+            {/* Text */}
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-xl">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold">
+                    النص
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    اكتب النص الذي تريد تحويله إلى
+                    صوت
+                  </p>
+                </div>
+
+                <span className="text-xs text-slate-400">
+                  {characterCount.toLocaleString(
+                    'ar-EG'
+                  )}{' '}
+                  /{' '}
+                  {MAX_TEXT_LENGTH.toLocaleString(
+                    'ar-EG'
+                  )}
+                </span>
+              </div>
+
+              <textarea
+                value={text}
+                onChange={(event) =>
+                  setText(
+                    event.target.value.slice(
+                      0,
+                      MAX_TEXT_LENGTH
+                    )
+                  )
+                }
+                placeholder="اكتب النص هنا..."
+                rows={12}
+                className="w-full resize-none rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm leading-8 text-white outline-none transition focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20"
+              />
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-xs text-slate-400">
+                  المتبقي بعد هذه العملية:{' '}
+                  <span className="font-bold text-slate-200">
+                    {remainingCharacters.toLocaleString(
+                      'ar-EG'
+                    )}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={!canGenerate}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Sparkles
+                    size={18}
+                  />
+
+                  {isBusy
+                    ? 'جاري إنشاء الصوت...'
+                    : 'إنشاء الصوت'}
+                </button>
+              </div>
+            </div>
+
+            {/* Result */}
+            {(status === 'error' ||
+              status === 'success' ||
+              audioUrl) && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                {status === 'error' &&
+                  error && (
+                    <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-red-300">
+                      <AlertCircle
+                        size={20}
+                        className="mt-0.5 shrink-0"
+                      />
+
+                      <div>
+                        <p className="font-bold">
+                          حدث خطأ
+                        </p>
+
+                        <p className="mt-1 text-sm leading-6">
+                          {error}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                {status === 'success' &&
+                  successMessage && (
+                    <div className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-300">
+                      <CheckCircle2
+                        size={20}
+                        className="mt-0.5 shrink-0"
+                      />
+
+                      <div>
+                        <p className="font-bold">
+                          تم بنجاح
+                        </p>
+
+                        <p className="mt-1 text-sm">
+                          {successMessage}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                {audioUrl && (
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <Volume2
+                        size={18}
+                        className="text-indigo-400"
+                      />
+
+                      <h3 className="font-bold">
+                        الصوت الناتج
+                      </h3>
+                    </div>
+
+                    <audio
+                      controls
+                      src={audioUrl}
+                      className="w-full"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={
+                        handleDownload
+                      }
+                      className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-bold transition hover:bg-white/10"
+                    >
+                      تحميل الصوت
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* Settings */}
+          <aside className="space-y-6">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                  <Sliders
+                    size={20}
+                  />
+                </div>
+
+                <div>
+                  <h2 className="font-bold">
+                    إعدادات الصوت
+                  </h2>
+
+                  <p className="text-xs text-slate-400">
+                    تحكم في شكل الصوت الناتج
+                  </p>
+                </div>
+              </div>
+
+              {/* Voice */}
+              <div className="mb-5">
+                <label className="mb-2 block text-sm font-bold">
+                  الصوت
+                </label>
+
+                <select
+                  value={selectedVoice}
+                  onChange={(event) =>
+                    setSelectedVoice(
+                      event.target.value
+                    )
+                  }
+                  className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500/60"
+                >
+                  <option value="">
+                    اختر الصوت
+                  </option>
+
+                  {voices.map(
+                    (voice: any) => (
+                      <option
+                        key={voiceValue(
+                          voice
+                        )}
+                        value={voiceValue(
+                          voice
+                        )}
+                      >
+                        {voiceLabel(
+                          voice
+                        )}
+                      </option>
+                    )
+                  )}
+                </select>
+
+                {selectedVoiceObject && (
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-slate-900/60 p-3">
+                    <div className="flex items-center gap-3">
+                      {selectedVoiceObject.avatarUrl ? (
+                        <img
+                          src={
+                            selectedVoiceObject.avatarUrl
+                          }
+                          alt=""
+                          className="h-11 w-11 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-300">
+                          <Volume2
+                            size={18}
+                          />
+                        </div>
+                      )}
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold">
+                          {voiceLabel(
+                            selectedVoiceObject
+                          )}
+                        </p>
+
+                        {selectedVoiceObject.description && (
+                          <p className="mt-1 text-xs leading-5 text-slate-400">
+                            {
+                              selectedVoiceObject.description
+                            }
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Language */}
+              <div className="mb-5">
+                <label className="mb-2 flex items-center gap-2 text-sm font-bold">
+                  <Globe
+                    size={16}
+                  />
+                  اللغة
+                </label>
+
+                <select
+                  value={language}
+                  onChange={(event) =>
+                    setLanguage(
+                      event.target.value
+                    )
+                  }
+                  className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500/60"
+                >
+                  <option value="ar">
+                    العربية
+                  </option>
+
+                  <option value="en">
+                    English
+                  </option>
+
+                  <option value="fr">
+                    Français
+                  </option>
+
+                  <option value="de">
+                    Deutsch
+                  </option>
+
+                  <option value="es">
+                    Español
+                  </option>
+                </select>
+              </div>
+
+              {/* Style */}
+              <div className="mb-5">
+                <label className="mb-2 block text-sm font-bold">
+                  أسلوب الصوت
+                </label>
+
+                <select
+                  value={style}
+                  onChange={(event) =>
+                    setStyle(
+                      event.target.value
+                    )
+                  }
+                  className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-indigo-500/60"
+                >
+                  <option value="natural">
+                    طبيعي
+                  </option>
+
+                  <option value="professional">
+                    احترافي
+                  </option>
+
+                  <option value="friendly">
+                    ودود
+                  </option>
+
+                  <option value="calm">
+                    هادئ
+                  </option>
+
+                  <option value="energetic">
+                    حماسي
+                  </option>
+                </select>
+              </div>
+
+              {/* Speaking rate */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-bold">
+                    سرعة الكلام
+                  </label>
+
+                  <span className="text-xs text-slate-400">
+                    {speakingRate.toFixed(
+                      1
+                    )}x
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={speakingRate}
+                  onChange={(event) =>
+                    setSpeakingRate(
+                      Number(
+                        event.target.value
+                      )
+                    )
+                  }
+                  className="w-full"
+                />
+
+                <div className="mt-2 flex justify-between text-[11px] text-slate-500">
+                  <span>بطيء</span>
+                  <span>طبيعي</span>
+                  <span>سريع</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={!canGenerate}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Sparkles
+                  size={18}
+                />
+
+                {isBusy
+                  ? 'جاري الإنشاء...'
+                  : 'إنشاء الصوت'}
+              </button>
+            </div>
+
+            {/* API status */}
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                  <ShieldCheck
+                    size={20}
+                  />
+                </div>
+
+                <div>
+                  <h3 className="font-bold">
+                    حالة الاتصال
+                  </h3>
+
+                  <p className="text-xs text-slate-400">
+                    إعدادات Gemini
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between rounded-2xl bg-slate-900/60 p-3">
+                  <span className="text-slate-400">
+                    API Key
+                  </span>
+
+                  <span
+                    className={
+                      hasGeminiKey
+                        ? 'font-bold text-emerald-400'
+                        : 'font-bold text-amber-400'
+                    }
+                  >
+                    {hasGeminiKey
+                      ? 'مُعد'
+                      : 'غير مُعد'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl bg-slate-900/60 p-3">
+                  <span className="text-slate-400">
+                    الصوت المحدد
+                  </span>
+
+                  <span className="font-bold text-slate-200">
+                    {selectedVoice
+                      ? 'جاهز'
+                      : 'اختر صوتًا'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-2xl bg-slate-900/60 p-3">
+                  <span className="text-slate-400">
+                    الحالة
+                  </span>
+
+                  <span className="flex items-center gap-1.5 font-bold text-slate-200">
+                    <Activity
+                      size={14}
+                    />
+
+                    {status ===
+                    'generating'
+                      ? 'جاري العمل'
+                      : status ===
+                        'success'
+                      ? 'مكتمل'
+                      : status ===
+                        'error'
+                      ? 'خطأ'
+                      : 'جاهز'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Info cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <Clock
+                  size={18}
+                  className="mb-3 text-indigo-400"
+                />
+
+                <p className="text-xs text-slate-400">
+                  زمن المعالجة
+                </p>
+
+                <p className="mt-1 font-bold">
+                  سريع
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <KeyRound
+                  size={18}
+                  className="mb-3 text-indigo-400"
+                />
+
+                <p className="text-xs text-slate-400">
+                  المحرك
+                </p>
+
+                <p className="mt-1 font-bold">
+                  Gemini TTS
+                </p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  );
+}
