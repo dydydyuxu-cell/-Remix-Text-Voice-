@@ -17,11 +17,7 @@ import {
 
 import { useAuth } from '../firebase/authContext';
 import { generateTTS } from '../services/apiClient';
-import type {
-  BalanceInfo,
-  UserSettings,
-} from '../types';
-
+import type { BalanceInfo, UserSettings } from '../types';
 import { VOICES } from '../data/voices';
 
 interface TTSStudioProps {
@@ -49,7 +45,7 @@ const GOOGLE_ICON = (
   >
     <path
       fill="#4285F4"
-      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68l3.88 3.05c2.27-2.09 3.66-5.17 3.66-9.17z"
     />
     <path
       fill="#34A853"
@@ -66,59 +62,46 @@ const GOOGLE_ICON = (
   </svg>
 );
 
-const getVoiceId = (voice: any): string => {
+function getVoiceValue(voice: unknown): string {
+  if (!voice || typeof voice !== 'object') return '';
+
+  const item = voice as Record<string, unknown>;
+
   return String(
-    voice?.id ??
-      voice?.voiceName ??
-      voice?.name ??
-      voice?.value ??
-      'Puck'
+    item.name ??
+      item.voiceName ??
+      item.id ??
+      item.value ??
+      '',
   );
-};
+}
 
-const getVoiceName = (voice: any): string => {
+function getVoiceLabel(voice: unknown): string {
+  if (!voice || typeof voice !== 'object') return '';
+
+  const item = voice as Record<string, unknown>;
+
   return String(
-    voice?.label ??
-      voice?.displayName ??
-      voice?.name ??
-      voice?.voiceName ??
-      voice?.id ??
-      'Puck'
+    item.label ??
+      item.displayName ??
+      item.name ??
+      item.voiceName ??
+      item.id ??
+      '',
   );
-};
+}
 
-const getBalanceAmount = (balance: BalanceInfo | null): number => {
-  if (!balance) return 0;
+function getVoiceDescription(voice: unknown): string {
+  if (!voice || typeof voice !== 'object') return '';
 
-  const value =
-    (balance as any).freeCharacters ??
-    (balance as any).remainingCharacters ??
-    (balance as any).remaining ??
-    (balance as any).balance ??
-    0;
+  const item = voice as Record<string, unknown>;
 
-  const numberValue = Number(value);
-
-  return Number.isFinite(numberValue)
-    ? Math.max(0, Math.floor(numberValue))
-    : 0;
-};
-
-const getErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return 'حدث خطأ غير متوقع.';
-  }
-};
+  return String(
+    item.description ??
+      item.desc ??
+      '',
+  );
+}
 
 export default function TTSStudio({
   balance,
@@ -129,74 +112,14 @@ export default function TTSStudio({
   const { user, getIdToken } = useAuth();
 
   const [text, setText] = useState('');
-  const [voiceName, setVoiceName] = useState('Puck');
-  const [language, setLanguage] = useState('Arabic');
-  const [style, setStyle] = useState('طبيعي');
+  const [voiceName, setVoiceName] = useState('');
+  const [language, setLanguage] = useState('ar');
+  const [style, setStyle] = useState('طبيعي وواضح');
   const [speakingRate, setSpeakingRate] = useState(1);
 
-  const [status, setStatus] =
-    useState<GenerationStatus>('IDLE');
-
+  const [status, setStatus] = useState<GenerationStatus>('IDLE');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
   const [audioUrl, setAudioUrl] = useState('');
-  const [audioMimeType, setAudioMimeType] =
-    useState('audio/wav');
-
-  const characterCount = text.length;
-  const remainingCharacters = getBalanceAmount(balance);
-
-  const hasUserGeminiKey = Boolean(
-    (settings as any)?.hasCustomApiKey
-  );
-
-  const isByokActive =
-    (settings as any)?.providerMode === 'byok' &&
-    hasUserGeminiKey;
-
-  const canGenerate = useMemo(() => {
-    return (
-      Boolean(user) &&
-      Boolean(text.trim()) &&
-      characterCount <= MAX_TEXT_LENGTH &&
-      characterCount > 0 &&
-      remainingCharacters >= characterCount &&
-      hasUserGeminiKey &&
-      status !== 'PROCESSING' &&
-      status !== 'QUEUED'
-    );
-  }, [
-    user,
-    text,
-    characterCount,
-    remainingCharacters,
-    hasUserGeminiKey,
-    status,
-  ]);
-
-  const handleGenerate = async () => {
-    setError('');
-    setSuccess('');
-
-    if (!user) {
-      setError(
-        'يجب تسجيل الدخول بحساب Google أولاً.'
-      );
-      return;
-    }
-
-    const cleanText = text.trim();
-
-    if (!cleanText) {
-      setError('اكتب النص أولاً.');
-      return;
-    }
-
-    if (cleanText.length > MAX_TEXT_LENGTH) {
-      setError(
-        `النص أطول من الحد المسموح وهو ${MAX_TEXT_LENGTH.toLocaleString()} حرف.`
-      );
-      return;
-    }
-
-    if
+  const [audioMimeType, setAudioMimeType] = useState('audio/wav
