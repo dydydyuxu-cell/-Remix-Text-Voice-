@@ -6,7 +6,7 @@ import {
   GoogleAuthProvider,
   signOut as fbSignOut,
 } from 'firebase/auth';
-import { auth } from './config';
+import { auth } from './voices';
 
 interface AuthContextType {
   user: User | null;
