@@ -201,3 +201,15 @@ export async function getUserGenerations(
 
 /**
  * Delete one generation
+ */
+export async function deleteGeneration(
+  idToken: string,
+  generationId: string
+): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  return fetchApi(`/api/user/generations/${generationId}`, idToken, {
+    method: 'DELETE',
+  });
+}
