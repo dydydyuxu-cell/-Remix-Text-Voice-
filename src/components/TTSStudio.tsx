@@ -11,7 +11,6 @@ import {
   KeyRound,
   ShieldCheck,
   ChevronRight,
-  Search,
   Activity,
   Calendar,
 } from 'lucide-react';
@@ -21,11 +20,9 @@ import { generateTTS } from '../services/apiClient';
 import type {
   BalanceInfo,
   UserSettings,
-  VoiceOption,
 } from '../types';
 
 import { VOICES } from '../data/voices';
-import AudioPlayer from './AudioPlayer';
 
 interface TTSStudioProps {
   balance: BalanceInfo | null;
@@ -64,4 +61,142 @@ const GOOGLE_ICON = (
     />
     <path
       fill="#EA4335"
-      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15C6.23 6.85 8.88 4.75 12 4.75z"
+    />
+  </svg>
+);
+
+const getVoiceId = (voice: any): string => {
+  return String(
+    voice?.id ??
+      voice?.voiceName ??
+      voice?.name ??
+      voice?.value ??
+      'Puck'
+  );
+};
+
+const getVoiceName = (voice: any): string => {
+  return String(
+    voice?.label ??
+      voice?.displayName ??
+      voice?.name ??
+      voice?.voiceName ??
+      voice?.id ??
+      'Puck'
+  );
+};
+
+const getBalanceAmount = (balance: BalanceInfo | null): number => {
+  if (!balance) return 0;
+
+  const value =
+    (balance as any).freeCharacters ??
+    (balance as any).remainingCharacters ??
+    (balance as any).remaining ??
+    (balance as any).balance ??
+    0;
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue)
+    ? Math.max(0, Math.floor(numberValue))
+    : 0;
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'حدث خطأ غير متوقع.';
+  }
+};
+
+export default function TTSStudio({
+  balance,
+  settings,
+  onNavigate,
+  onBalanceRefresh,
+}: TTSStudioProps) {
+  const { user, getIdToken } = useAuth();
+
+  const [text, setText] = useState('');
+  const [voiceName, setVoiceName] = useState('Puck');
+  const [language, setLanguage] = useState('Arabic');
+  const [style, setStyle] = useState('طبيعي');
+  const [speakingRate, setSpeakingRate] = useState(1);
+
+  const [status, setStatus] =
+    useState<GenerationStatus>('IDLE');
+
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [audioMimeType, setAudioMimeType] =
+    useState('audio/wav');
+
+  const characterCount = text.length;
+  const remainingCharacters = getBalanceAmount(balance);
+
+  const hasUserGeminiKey = Boolean(
+    (settings as any)?.hasCustomApiKey
+  );
+
+  const isByokActive =
+    (settings as any)?.providerMode === 'byok' &&
+    hasUserGeminiKey;
+
+  const canGenerate = useMemo(() => {
+    return (
+      Boolean(user) &&
+      Boolean(text.trim()) &&
+      characterCount <= MAX_TEXT_LENGTH &&
+      characterCount > 0 &&
+      remainingCharacters >= characterCount &&
+      hasUserGeminiKey &&
+      status !== 'PROCESSING' &&
+      status !== 'QUEUED'
+    );
+  }, [
+    user,
+    text,
+    characterCount,
+    remainingCharacters,
+    hasUserGeminiKey,
+    status,
+  ]);
+
+  const handleGenerate = async () => {
+    setError('');
+    setSuccess('');
+
+    if (!user) {
+      setError(
+        'يجب تسجيل الدخول بحساب Google أولاً.'
+      );
+      return;
+    }
+
+    const cleanText = text.trim();
+
+    if (!cleanText) {
+      setError('اكتب النص أولاً.');
+      return;
+    }
+
+    if (cleanText.length > MAX_TEXT_LENGTH) {
+      setError(
+        `النص أطول من الحد المسموح وهو ${MAX_TEXT_LENGTH.toLocaleString()} حرف.`
+      );
+      return;
+    }
+
+    if
